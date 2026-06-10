@@ -398,10 +398,6 @@ def plot_solution(cities: Sequence[City], result: ACOResult) -> None:
     plt.show()
 
 
-# -------------------------
-# Menu tekstowe
-# -------------------------
-
 
 def ask_int(prompt: str, default: int, minimum: Optional[int] = None) -> int:
     while True:
@@ -589,11 +585,6 @@ def main() -> None:
             break
 
 
-# -------------------------
-# Funkcje pomocnicze do testów / eksperymentów
-# -------------------------
-
-
 def print_test_header(name: str) -> None:
     print("\n" + "=" * 70)
     print(f"START TESTU: {name}")
@@ -673,10 +664,6 @@ def run_experiment(
     }
 
 
-# -------------------------
-# Dodatkowe algorytmy porównawcze
-# -------------------------
-
 
 def brute_force_tsp(distance_matrix: np.ndarray) -> Tuple[List[int], float]:
     """
@@ -690,8 +677,6 @@ def brute_force_tsp(distance_matrix: np.ndarray) -> Tuple[List[int], float]:
     best_tour: Optional[List[int]] = None
     best_length = math.inf
 
-    # Zaczynamy zawsze od miasta 0.
-    # Dzięki temu nie liczymy wielokrotnie tych samych cykli.
     for perm in itertools.permutations(range(1, n)):
         tour = [0] + list(perm)
         length = tour_length(distance_matrix, tour)
@@ -737,10 +722,6 @@ def nearest_neighbor_tsp(
 
     return tour, length
 
-
-# -------------------------
-# Dotychczasowe testy / eksperymenty
-# -------------------------
 
 
 def test_ants() -> None:
@@ -813,9 +794,6 @@ def test_cities() -> None:
     save_results("test_cities.csv", results)
 
 
-# -------------------------
-# NOWE TESTY: punkt 1, 2, 3
-# -------------------------
 
 
 def test_against_optimum() -> None:
@@ -1145,12 +1123,9 @@ def run_all_tests() -> None:
     print("\nUruchomiono tryb testowy.")
     print("Wyniki zostaną zapisane do plików CSV w katalogu programu.")
 
-    # Testy, które były już wcześniej w kodzie.
     test_ants()
     test_iterations()
     test_cities()
-
-    # Nowe testy dodane do rozbudowy projektu.
     test_against_optimum()
     test_vs_nearest_neighbor()
     test_alpha()
