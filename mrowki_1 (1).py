@@ -116,7 +116,7 @@ class AntColonyTSP:
                 if self.verbose:
                     print(
                         f"Iteracja {iteration + 1}: "
-                        f"stagnacja -> częściowy reset feromonów"
+                        f"stagnacja częściowy reset feromonów"
                     )
 
                 self._reset_pheromone_partially(0.5)
@@ -294,6 +294,47 @@ def load_cities_from_csv(path: str | Path) -> List[City]:
 
     return cities
 
+def load_cities_from_tsplib(path: str | Path) -> List[City]:
+    cities = []
+
+    with open(path, "r", encoding="utf-8") as file:
+        lines = [line.strip() for line in file]
+
+    node_section = False
+
+    for line in lines:
+
+        if line.startswith("NODE_COORD_SECTION"):
+            node_section = True
+            continue
+
+        if line.startswith("EOF"):
+            break
+
+        if not node_section:
+            continue
+
+        parts = line.split()
+
+        if len(parts) < 3:
+            continue
+
+        node_id = parts[0]
+        x = float(parts[1])
+        y = float(parts[2])
+
+        cities.append(
+            City(
+                name=f"C{node_id}",
+                x=x,
+                y=y,
+            )
+        )
+
+    if len(cities) < 3:
+        raise ValueError("Nie udało się odczytać miast z pliku TSPLIB.")
+
+    return cities
 
 def generate_random_cities(
     n: int,
@@ -435,6 +476,7 @@ def show_main_menu() -> None:
     print("=" * 60)
     print("1. Wygeneruj losowe miasta")
     print("2. Wczytaj miasta z pliku CSV")
+    print("3. Wczytaj instancję TSPLIB")
     print("3. Wyjdź")
     print("=" * 60)
 
@@ -459,6 +501,15 @@ def get_cities_from_menu() -> Optional[List[City]]:
                 print("Spróbuj ponownie.")
 
         if choice == "3":
+            path = input("Podaj ścieżkę do pliku .tsp: ").strip().strip('"')
+
+            try:
+                return load_cities_from_tsplib(path)
+            except Exception as exc:
+                print(f"Nie udało się wczytać pliku: {exc}")
+                print("Spróbuj ponownie.")
+
+        if choice == "4":
             return None
 
         print("Nieprawidłowa opcja. Wybierz 1, 2 albo 3.")
@@ -888,6 +939,63 @@ def test_vs_nearest_neighbor() -> None:
 
     save_results("test_vs_nearest_neighbor.csv", results)
 
+def test_tsplib() -> None:
+
+    test_name = "test_tsplib"
+    print_test_header(test_name)
+
+    results = []
+
+    instances = [
+        ("berlin52.tsp", 7542),
+        ("eil51.tsp", 426),
+        ("st70.tsp", 675),
+    ]
+
+    total = len(instances)
+
+    for index, (filename, optimum) in enumerate(instances, start=1):
+
+        cities = load_cities_from_tsplib(filename)
+        distance_matrix = euclidean_distance_matrix(cities)
+
+        start = time.perf_counter()
+
+        solver = AntColonyTSP(
+            distance_matrix=distance_matrix,
+            ants=40,
+            iterations=500,
+            alpha=1.0,
+            beta=2.0,
+            evaporation_rate=0.5,
+            q=100.0,
+            elitist_weight=2.0,
+            seed=42,
+            verbose=False,
+        )
+
+        result = solver.solve()
+
+        elapsed = time.perf_counter() - start
+
+        error_percent = (
+            (result.best_length - optimum)
+            / optimum
+        ) * 100
+
+        results.append(
+            {
+                "instance": filename,
+                "known_optimum": optimum,
+                "aco_length": result.best_length,
+                "error_percent": error_percent,
+                "time_sec": elapsed,
+            }
+        )
+
+        print_progress(test_name, index, total)
+
+    save_results("test_tsplib.csv", results)
 
 def test_alpha() -> None:
     """
@@ -972,6 +1080,66 @@ def test_evaporation() -> None:
 
     save_results("test_evaporation.csv", results)
 
+def test_berlin52_ants() -> None:
+
+    test_name = "berlin52_ants"
+    print_test_header(test_name)
+
+    results = []
+
+    ants_values = [5, 10, 20, 30, 40, 60, 80, 120]
+    seeds = range(10)
+
+    total = len(ants_values) * len(seeds)
+    done = 0
+
+    cities = load_cities_from_tsplib("berlin52.tsp")
+    distance_matrix = euclidean_distance_matrix(cities)
+
+    optimum = 7542
+
+    for ants in ants_values:
+
+        for seed in seeds:
+
+            start = time.perf_counter()
+
+            solver = AntColonyTSP(
+                distance_matrix=distance_matrix,
+                ants=ants,
+                iterations=300,
+                alpha=1.0,
+                beta=2.0,
+                evaporation_rate=0.5,
+                q=100.0,
+                elitist_weight=2.0,
+                seed=seed,
+                verbose=False,
+            )
+
+            result = solver.solve()
+
+            elapsed = time.perf_counter() - start
+
+            error_percent = (
+                (result.best_length - optimum)
+                / optimum
+            ) * 100
+
+            results.append(
+                {
+                    "ants": ants,
+                    "seed": seed,
+                    "aco_length": result.best_length,
+                    "error_percent": error_percent,
+                    "time_sec": elapsed,
+                }
+            )
+
+            done += 1
+            print_progress(test_name, done, total)
+
+    save_results("berlin52_ants.csv", results)
 
 def run_all_tests() -> None:
     print("\nUruchomiono tryb testowy.")
@@ -993,9 +1161,4 @@ def run_all_tests() -> None:
 
 
 if __name__ == "__main__":
-    mode = input("Tryb [menu/test]: ").strip().lower()
-
-    if mode == "test":
-        run_all_tests()
-    else:
-        main()
+    test_berlin52_ants()
